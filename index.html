@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推文图片链接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #error-list { color: red; }
+        ul { list-style-type: none; }
+        li { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>推文图片链接测试</h1>
+    <p>正在检查所有图片链接... 请查看控制台或下方错误列表。</p>
+    <div id="error-list">
+        <h2>失败链接列表：</h2>
+        <ul></ul>
+    </div>
+    <script>
+        async function loadData() {
+            try {
+                const response = await fetch('twitter.json');
+                if (!response.ok) throw new Error('Failed to load JSON');
+                return await response.json();
+            } catch (error) {
+                console.error('Error loading JSON:', error);
+                return [];
+            }
+        }
+
+        function getImageUrl(screenName, tweetId, index, createdAt) {
+            const date = new Date(createdAt);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}${mm}${dd}`;
+            return `https://r3.dlozs.top/${screenName}_${tweetId}_photo_${index + 1}_${dateStr}.jpg`;
+        }
+
+        async function testImages() {
+            const data = await loadData();
+            const errorList = document.querySelector('#error-list ul');
+            let totalImages = 0;
+            let failedImages = 0;
+
+            data.forEach(tweet => {
+                if (tweet.media && tweet.media.length > 0) {
+                    tweet.media.forEach((media, index) => {
+                        totalImages++;
+                        const imgUrl = getImageUrl(tweet.screen_name, tweet.id, index, tweet.created_at);
+                        const img = new Image(); // 创建 Image 对象测试加载
+                        img.src = imgUrl;
+
+                        img.onload = () => {
+                            console.log(`OK: ${imgUrl} (推文 ID: ${tweet.id}, 索引: ${index + 1})`);
+                        };
+
+                        img.onerror = () => {
+                            failedImages++;
+                            const errorMsg = `失败: ${imgUrl} (推文 ID: ${tweet.id}, 索引: ${index + 1}, 用户: ${tweet.screen_name})`;
+                            console.error(errorMsg);
+                            const li = document.createElement('li');
+                            li.textContent = errorMsg;
+                            errorList.appendChild(li);
+                        };
+                    });
+                }
+            });
+
+            // 等待所有测试完成（粗略延时，实际可能需 Promise.all）
+            setTimeout(() => {
+                const summary = `总图片: ${totalImages}, 失败: ${failedImages}`;
+                console.log(summary);
+                const summaryP = document.createElement('p');
+                summaryP.textContent = summary;
+                document.getElementById('error-list').appendChild(summaryP);
+            }, 10000); // 10秒延时，视图片数调整
+        }
+
+        testImages();
+    </script>
+</body>
+</html>
